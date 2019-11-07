@@ -7,7 +7,6 @@ import gym
 import numpy as np
 from tensorflow.keras import models, layers, optimizers
 
-
 class DQN(object):
     def __init__(self):
         self.step = 0
