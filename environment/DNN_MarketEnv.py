@@ -2,11 +2,9 @@ import numpy as np
 import pandas as pd
 import random
 import gym
-# import tensorflow as tf
-# import math
 
 df = pd.read_csv('data/create_feature.csv', index_col=0, header=0)
-df['trade_date'] = df['trade_date'].astype('datetime64')
+df = df.astype({'trade_date':'datetime64'})
 df = df[df['trade_date'] <= pd.datetime.strptime('20190809', '%Y%m%d')]
 df = df.set_index('trade_date')
 df = df.fillna(method='ffill', axis=1)
@@ -16,7 +14,7 @@ df = df.dropna(axis=0, how='any')
 class DNNMarketEnv(gym.Env):
     environment_name = 'Assert Portfolio'
 
-    def __init__(self, df, initial_account_balance=10000, sell_fee=0., buy_fee=0.0015):
+    def __init__(self, df, initial_account_balance=10000., sell_fee=0., buy_fee=0.0015):
         super(DNNMarketEnv, self).__init__()
         self.id = "Assert Portfolio"
         self.df = df
@@ -30,17 +28,18 @@ class DNNMarketEnv(gym.Env):
         self.action_space = gym.spaces.Box(low=0, high=1, shape=(1, self.action_dim), dtype=np.float16)
         self.observation_space = gym.spaces.Box(low=0, high=1, shape=(1, self.df.shape[1]), dtype=np.float16)
 
-        self.Max_Steps = len(self.df)
+        self.Max_Steps = len(self.df)-2
         self.Max_Share_Price = self.df.max(axis=0)
         self.Max_Share_Price = np.power(10, np.ceil(np.log10(self.Max_Share_Price)))
 
-        self.buy_fee = buy_fee
-        self.sell_fee = sell_fee
+        self.buy_fee = buy_fee                                                                         # 购买费率
+        self.sell_fee = sell_fee                                                                       # 赎回费率
         self.initial_account_balance = initial_account_balance                                         # 初始资金
         self.net_worth = initial_account_balance                                                       # 账户总市值
         self.max_net_worth = initial_account_balance                                                   # 账户最大市值
         self.shares_held = np.append(np.zeros(shape=self.action_dim-1), initial_account_balance)       # 持有股票份额
-        self.current_step = random.randint(0, self.Max_Steps)                                          # 最大步数
+        self.current_step = random.randint(0, self.Max_Steps)                                          # 现在位置
+        self.start_date = self.df.index[self.current_step]
 
     def seed(self, seed=None):
         self.np_random, seed = gym.utils.seeding.np_random(seed)
@@ -68,18 +67,17 @@ class DNNMarketEnv(gym.Env):
 
     # 在环境中执行一步
     def step(self, action):
+        obs = self._next_observation()
         self._take_action(action)
         self.current_step += 1
-        if self.current_step >= self.Max_Steps:
-            self.current_step = 0
-        delay_modifier = self.current_step / self.Max_Steps
-        reward = self.net_worth * delay_modifier
-        done = self.net_worth <= 0
-        obs = self._next_observation()
+        reward = np.sum(np.append(np.array(self.df.iloc[self.current_step, ][self.price_cols]), 1)*self.shares_held)
+        done = self.current_step >= self.Max_Steps
+        if self.net_worth > self.max_net_worth:
+            self.max_net_worth = self.net_worth
         return obs, reward, done, {}
 
     # 重置环境状态至初始状态
-    def reset(self, initial_account_balance=10000):
+    def reset(self, initial_account_balance=10000.):
         self.initial_account_balance = initial_account_balance
         self.net_worth = initial_account_balance
         self.max_net_worth = initial_account_balance
@@ -89,11 +87,11 @@ class DNNMarketEnv(gym.Env):
 
     # 打印出环境
     def render(self, mode='human'):
-        profit = self.net_worth - self.initial_account_balance
+        ret = self.net_worth / self.initial_account_balance * 100 - 100
+        yea_ret = (self.net_worth/self.initial_account_balance)**(365/(self.self.df.index[self.current_step] - self.start_date).days)*100-100
         print(f'Step:{self.current_step}')
-        # print(f':{self.balance}')
-        print(f':{self.shares_held}')
-        # print(f':{self.cost_basis}(:{self.total_sales_value})')
+        print(f'股票份额:{self.shares_held}')
         print(f'总市值:{self.net_worth}(最大市值:{self.max_net_worth})')
-        print(f'盈利:{profit}')
+        print(f'累计收益率:{ret}%')
+        print(f'累计年化收益率:{yea_ret}%')
 
