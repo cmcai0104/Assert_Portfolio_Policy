@@ -3,18 +3,18 @@ import pandas as pd
 import random
 import gym
 
-df = pd.read_csv('data/create_feature.csv', index_col=0, header=0)
-df = df.astype({'trade_date':'datetime64'})
-df = df[df['trade_date'] <= pd.datetime.strptime('20190809', '%Y%m%d')]
-df = df.set_index('trade_date')
-df = df.fillna(method='ffill', axis=1)
-df = df.dropna(axis=0, how='any')
+# df = pd.read_csv('./data/create_feature.csv', index_col=0, header=0)
+# df['trade_date'] = df['trade_date'].astype('datetime64')
+# df = df[df['trade_date'] <= pd.datetime.strptime('20190809', '%Y%m%d')]
+# df = df.set_index('trade_date')
+# df = df.fillna(method='ffill', axis=0)
+# df = df.dropna(axis=0, how='any')
 
 
 class DNNMarketEnv(gym.Env):
     environment_name = 'Assert Portfolio'
 
-    def __init__(self, df, initial_account_balance=10000., sell_fee=0., buy_fee=0.0015):
+    def __init__(self, df, initial_account_balance=10000., sell_fee=0., buy_fee=0.015):
         super(DNNMarketEnv, self).__init__()
         self.id = "Assert Portfolio"
         self.df = df
@@ -52,9 +52,10 @@ class DNNMarketEnv(gym.Env):
 
     # 进行交易
     def _take_action(self, action):
-        current_price = np.array(self.df.iloc[self.current_step, ][self.price_cols])
-        self.net_worth = np.sum(np.append(current_price, 1)*self.shares_held)
-        hold_rate = (np.append(current_price, 1) * self.shares_held / self.net_worth)
+        self.current_price = np.array(self.df.iloc[self.current_step, ][self.price_cols])
+        self.shares_before = self.shares_held
+        self.net_worth = np.sum(np.append(self.current_price, 1)*self.shares_held)
+        hold_rate = (np.append(self.current_price, 1) * self.shares_held / self.net_worth)
         target_rate = (action.numpy() / action.numpy().sum())[0]
         para = np.zeros(len(hold_rate)-1)
         sell_index = np.where(hold_rate[:-1] > target_rate[:-1])
@@ -63,35 +64,36 @@ class DNNMarketEnv(gym.Env):
         para[buy_index] = 1/(1-self.buy_fee)
         self.net_worth = ((hold_rate[:-1]*para).sum()+hold_rate[-1]) / \
                          ((target_rate[:-1]*para).sum()+target_rate[-1]) * self.net_worth
-        self.shares_held = self.net_worth * target_rate / np.append(current_price, 1)
+        self.shares_held = self.net_worth * target_rate / np.append(self.current_price, 1)
 
     # 在环境中执行一步
     def step(self, action):
         obs = self._next_observation()
         self._take_action(action)
         self.current_step += 1
-        reward = np.sum(np.append(np.array(self.df.iloc[self.current_step, ][self.price_cols]), 1)*self.shares_held)
+        self.next_price = np.array(self.df.iloc[self.current_step, ][self.price_cols])
+        reward = np.sum(np.append(self.next_price, 1)*self.shares_held)
         done = self.current_step >= self.Max_Steps
         if self.net_worth > self.max_net_worth:
             self.max_net_worth = self.net_worth
-        return obs, reward, done, {}
+        return obs, reward, done, (self.current_price, self.next_price, self.shares_before)
 
     # 重置环境状态至初始状态
-    def reset(self, initial_account_balance=10000.):
-        self.initial_account_balance = initial_account_balance
-        self.net_worth = initial_account_balance
-        self.max_net_worth = initial_account_balance
-        self.shares_held = np.append(np.zeros(shape=self.action_dim - 1), initial_account_balance)
+    def reset(self):
+        self.net_worth = self.initial_account_balance
+        self.max_net_worth = self.initial_account_balance
+        self.shares_held = np.append(np.zeros(shape=self.action_dim - 1), self.initial_account_balance)
         self.current_step = random.randint(0, self.Max_Steps)
+        self.start_date = self.df.index[self.current_step]
         return self._next_observation()
 
     # 打印出环境
     def render(self, mode='human'):
         ret = self.net_worth / self.initial_account_balance * 100 - 100
-        yea_ret = (self.net_worth/self.initial_account_balance)**(365/(self.self.df.index[self.current_step] - self.start_date).days)*100-100
+        yea_ret = (self.net_worth/self.initial_account_balance)**(365/(self.df.index[self.current_step] - self.start_date).days)*100-100
         print(f'Step:{self.current_step}')
-        print(f'股票份额:{self.shares_held}')
-        print(f'总市值:{self.net_worth}(最大市值:{self.max_net_worth})')
-        print(f'累计收益率:{ret}%')
-        print(f'累计年化收益率:{yea_ret}%')
+        #print(f'股票份额:{self.shares_held}')
+        print(f'总市值:{round(self.net_worth,2)}(最大市值:{round(self.max_net_worth,2)})')
+        print(f'累计收益率:{round(ret,2)}%')
+        print(f'累计年化收益率:{round(yea_ret,2)}%')
 

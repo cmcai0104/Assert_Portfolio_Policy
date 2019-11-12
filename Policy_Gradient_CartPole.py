@@ -14,8 +14,7 @@ model = models.Sequential([
     layers.Dropout(0.1),
     layers.Dense(ACTION_DIM, activation="softmax")
 ])
-model.compile(loss='mean_squared_error',
-              optimizer=optimizers.Adam(0.001))
+model.compile(loss='mean_squared_error', optimizer=optimizers.Adam(0.001))
 
 def choose_action(s):
     """预测动作"""
