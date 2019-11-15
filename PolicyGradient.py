@@ -10,9 +10,11 @@ df['trade_date'] = df['trade_date'].astype('datetime64')
 df = df[df['trade_date'] <= pd.datetime.strptime('20190809', '%Y%m%d')]
 df = df.set_index('trade_date')
 df = df.fillna(method='ffill', axis=0)
-df = df.dropna(axis=0, how='any')
 colnames = df.columns
-price_col = colnames[[col[-5:]=='close' for col in colnames]]
+colnames = colnames[[col[:6] != '399016' for col in colnames]]
+df = df[colnames]
+df = df.dropna(axis=0, how='any')
+price_col = colnames[[col[-5:] == 'price' for col in colnames]]
 
 
 env = DNNMarketEnv(df)
@@ -46,7 +48,7 @@ def discount_reward(rewards, r=0.04/250):
 
 def train(model, obs, reward):
     with tf.GradientTape() as tape:
-        loss = tf.reduce_mean(tf.math.log(model(obs)[1]))*(reward - 12500)
+        loss = tf.reduce_mean(tf.math.log(model(obs)[1]))*(25000-reward)
     gradient = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(gradient, model.trainable_variables))
     return loss
@@ -90,5 +92,5 @@ if __name__ == '__main__':
             plot_df.to_csv('./data_for_analysis/%s_df.csv'%epoch)
         if math.isnan(rewards[-1]) or math.isnan(loss):
             break
-    model.save()
+    model.save('./model/policy_gradient')
 

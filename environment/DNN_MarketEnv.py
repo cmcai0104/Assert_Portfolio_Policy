@@ -1,15 +1,8 @@
 import numpy as np
-import pandas as pd
-import random
+# import pandas as pd
+# import random
 import gym
-import warnings
-
-# df = pd.read_csv('./data/create_feature.csv', index_col=0, header=0)
-# df['trade_date'] = df['trade_date'].astype('datetime64')
-# df = df[df['trade_date'] <= pd.datetime.strptime('20190809', '%Y%m%d')]
-# df = df.set_index('trade_date')
-# df = df.fillna(method='ffill', axis=0)
-# df = df.dropna(axis=0, how='any')
+# import warnings
 
 
 class DNNMarketEnv(gym.Env):
@@ -67,12 +60,6 @@ class DNNMarketEnv(gym.Env):
         self.net_worth = ((hold_rate[:-1]*para).sum()+hold_rate[-1]) / \
                          ((target_rate[:-1]*para).sum()+target_rate[-1]) * self.net_worth
         self.shares_held = self.net_worth * target_rate / np.append(self.current_price, 1)
-        self.hold_rate = hold_rate
-        self.target_rate = target_rate
-        self.sell_index = sell_index
-        self.buy_index = buy_index
-        self.para = para
-
 
     # 在环境中执行一步
     def step(self, action):
