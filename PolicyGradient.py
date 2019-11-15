@@ -19,14 +19,14 @@ env = DNNMarketEnv(df)
 input_layer = tf.keras.layers.Input(shape=df.shape[1])
 hidden_dense_layer1 = tf.keras.layers.Dense(64, activation='relu')(input_layer)
 hidden_batch_layer1 = tf.keras.layers.BatchNormalization()(hidden_dense_layer1)
-hidden_drop_layer1 = tf.keras.layers.Dropout(0.2)(hidden_batch_layer1)
-hidden_dense_layer2 = tf.keras.layers.Dense(32, activation='relu')(hidden_drop_layer1)
+# hidden_drop_layer1 = tf.keras.layers.Dropout(0.2)(hidden_batch_layer1)
+hidden_dense_layer2 = tf.keras.layers.Dense(32, activation='relu')(hidden_batch_layer1)
 hidden_batch_layer2 = tf.keras.layers.BatchNormalization()(hidden_dense_layer2)
-hidden_drop_layer2 = tf.keras.layers.Dropout(0.2)(hidden_batch_layer2)
-hidden_dense_layer3 = tf.keras.layers.Dense(16, activation='relu')(hidden_drop_layer2)
+# hidden_drop_layer2 = tf.keras.layers.Dropout(0.2)(hidden_batch_layer2)
+hidden_dense_layer3 = tf.keras.layers.Dense(16, activation='relu')(hidden_batch_layer2)
 hidden_batch_layer3 = tf.keras.layers.BatchNormalization()(hidden_dense_layer3)
-hidden_drop_layer3 = tf.keras.layers.Dropout(0.2)(hidden_dense_layer3)
-output_para = tf.keras.layers.Dense(env.action_dim, activation='sigmoid')(hidden_drop_layer3)
+# hidden_drop_layer3 = tf.keras.layers.Dropout(0.2)(hidden_dense_layer3)
+output_para = tf.keras.layers.Dense(env.action_dim, activation='sigmoid')(hidden_batch_layer3)
 output_eval = tf.keras.layers.Dense(1, activation='sigmoid')(output_para)
 model = tf.keras.models.Model(inputs = [input_layer], outputs=[output_para, output_eval])
 optimizer = tf.keras.optimizers.RMSprop(0.001)
@@ -80,14 +80,15 @@ if __name__ == '__main__':
     for epoch in range(Epochs):
         loss, rewards = train_loop()
         losses.append(loss)
-        if epoch % 100 == 0:
+        if epoch % 1000 == 0:
             print('epochs:{}, loss:{}'.format(epoch, loss))
             plot_df = df[price_col]
             portfolio = [10000]
             portfolio.extend(rewards)
             portfolio.append(np.nan)
             plot_df['rewards'] = portfolio
-            plot_df.to_csv('%s_df.csv'%epoch)
+            plot_df.to_csv('./data_for_analysis/%s_df.csv'%epoch)
         if math.isnan(rewards[-1]) or math.isnan(loss):
             break
+    model.save()
 
