@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import random
 import gym
+import warnings
 
 # df = pd.read_csv('./data/create_feature.csv', index_col=0, header=0)
 # df['trade_date'] = df['trade_date'].astype('datetime64')
@@ -38,7 +39,8 @@ class DNNMarketEnv(gym.Env):
         self.net_worth = initial_account_balance                                                       # 账户总市值
         self.max_net_worth = initial_account_balance                                                   # 账户最大市值
         self.shares_held = np.append(np.zeros(shape=self.action_dim-1), initial_account_balance)       # 持有股票份额
-        self.current_step = random.randint(0, self.Max_Steps)                                          # 现在位置
+        #self.current_step = random.randint(0, self.Max_Steps)                                          # 现在位置
+        self.current_step = 0
         self.start_date = self.df.index[self.current_step]
 
     def seed(self, seed=None):
@@ -65,6 +67,12 @@ class DNNMarketEnv(gym.Env):
         self.net_worth = ((hold_rate[:-1]*para).sum()+hold_rate[-1]) / \
                          ((target_rate[:-1]*para).sum()+target_rate[-1]) * self.net_worth
         self.shares_held = self.net_worth * target_rate / np.append(self.current_price, 1)
+        self.hold_rate = hold_rate
+        self.target_rate = target_rate
+        self.sell_index = sell_index
+        self.buy_index = buy_index
+        self.para = para
+
 
     # 在环境中执行一步
     def step(self, action):
@@ -83,7 +91,8 @@ class DNNMarketEnv(gym.Env):
         self.net_worth = self.initial_account_balance
         self.max_net_worth = self.initial_account_balance
         self.shares_held = np.append(np.zeros(shape=self.action_dim - 1), self.initial_account_balance)
-        self.current_step = random.randint(0, self.Max_Steps)
+        #self.current_step = random.randint(0, self.Max_Steps)
+        self.current_step = 0
         self.start_date = self.df.index[self.current_step]
         return self._next_observation()
 
@@ -91,7 +100,7 @@ class DNNMarketEnv(gym.Env):
     def render(self, mode='human'):
         ret = self.net_worth / self.initial_account_balance * 100 - 100
         yea_ret = (self.net_worth/self.initial_account_balance)**(365/(self.df.index[self.current_step] - self.start_date).days)*100-100
-        print(f'Step:{self.current_step}')
+        #print(f'start_date:{self.start_date}')
         #print(f'股票份额:{self.shares_held}')
         print(f'总市值:{round(self.net_worth,2)}(最大市值:{round(self.max_net_worth,2)})')
         print(f'累计收益率:{round(ret,2)}%')
