@@ -1,8 +1,9 @@
 import math
 import numpy as np
 import pandas as pd
-from environment.DNN_MarketEnv import DNNMarketEnv
 import tensorflow as tf
+from tensorflow.keras import layers, activations, Input, models, optimizers
+from environment.DNN_MarketEnv import DNNMarketEnv
 
 
 df = pd.read_csv('./data/create_feature.csv', index_col=0, header=0)
@@ -18,44 +19,36 @@ price_col = colnames[[col[-5:] == 'price' for col in colnames]]
 
 
 env = DNNMarketEnv(df)
-input_layer = tf.keras.layers.Input(shape=df.shape[1])
-hidden_dense_layer1 = tf.keras.layers.Dense(64, activation='relu')(input_layer)
-hidden_batch_layer1 = tf.keras.layers.BatchNormalization()(hidden_dense_layer1)
-# hidden_drop_layer1 = tf.keras.layers.Dropout(0.2)(hidden_batch_layer1)
-hidden_dense_layer2 = tf.keras.layers.Dense(32, activation='relu')(hidden_batch_layer1)
-hidden_batch_layer2 = tf.keras.layers.BatchNormalization()(hidden_dense_layer2)
-# hidden_drop_layer2 = tf.keras.layers.Dropout(0.2)(hidden_batch_layer2)
-hidden_dense_layer3 = tf.keras.layers.Dense(16, activation='relu')(hidden_batch_layer2)
-hidden_batch_layer3 = tf.keras.layers.BatchNormalization()(hidden_dense_layer3)
-# hidden_drop_layer3 = tf.keras.layers.Dropout(0.2)(hidden_dense_layer3)
-output_para = tf.keras.layers.Dense(env.action_dim, activation='sigmoid')(hidden_batch_layer3)
-output_eval = tf.keras.layers.Dense(1, activation='sigmoid')(output_para)
-model = tf.keras.models.Model(inputs = [input_layer], outputs=[output_para, output_eval])
-optimizer = tf.keras.optimizers.RMSprop(0.001)
-#model.compile(loss='mean_squared_error', optimizer=tf.keras.optimizers.Adam(0.001))
+input_layer = Input(shape=df.shape[1])
+hidden_dense_layer1 = layers.Dense(64, activation=activations.tanh)(input_layer)
+hidden_batch_layer1 = layers.BatchNormalization()(hidden_dense_layer1)
+hidden_dense_layer2 = layers.Dense(32, activation=activations.tanh)(hidden_batch_layer1)
+hidden_batch_layer2 = layers.BatchNormalization()(hidden_dense_layer2)
+hidden_dense_layer3 = layers.Dense(16, activation=activations.tanh)(hidden_batch_layer2)
+hidden_batch_layer3 = layers.BatchNormalization()(hidden_dense_layer3)
+output_para = layers.Dense(env.action_dim, activation=activations.sigmoid)(hidden_batch_layer3)
+output_hidden = layers.Dense(4, activation=activations.tanh)(output_para)
+output_eval = layers.Dense(1, activation=activations.sigmoid)(output_hidden)
+model = models.Model(inputs=[input_layer], outputs=[output_para, output_eval])
+optimizer = optimizers.RMSprop(0.001)
 
 
 def discount_reward(rewards, r=0.04/250):
-    rewards = rewards.numpy()
-    discounted_rewards = np.zeros_like(rewards)
-    running_add = 0.
-    for t in reversed(range(0, len(rewards))):
-        running_add = running_add / (1+r) + rewards[t]
-        discounted_rewards[t] = running_add
-    discounted_rewards = discounted_rewards / np.array(list(reversed(range(1, len(discounted_rewards) + 1))))
-    return 10000. - tf.convert_to_tensor(discounted_rewards, dtype=tf.float32)
+    ret_rewards = rewards.numpy()[-1] / rewards
+    discount = np.array(list(reversed(range(1, len(ret_rewards) + 1))), dtype=float)
+    discount_rewards = ret_rewards ** (250./discount)
+    return 1.1 - tf.convert_to_tensor(discount_rewards, dtype=tf.float32)
 
 
-def train(model, obs, reward):
+def train(model, obs, rewards):
     with tf.GradientTape() as tape:
-        loss = tf.reduce_mean(tf.math.log(model(obs)[1]))*(25000-reward)
+        loss = tf.reduce_sum(tf.transpose(tf.math.log(model(obs)[1]))*rewards)
     gradient = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(gradient, model.trainable_variables))
     return loss
 
 
 def train_loop():
-
     ob = env.reset()
     obs = []
     rewards = []
@@ -70,14 +63,14 @@ def train_loop():
             break
     env.render()
     obs = tf.convert_to_tensor(obs, dtype=tf.float32)
-    #rewards = tf.convert_to_tensor(rewards, dtype=tf.float32)
-    #rewards = discount_reward(rewards)
-    loss = train(model, obs, rewards[-1])
+    rewards = tf.convert_to_tensor(rewards, dtype=tf.float32)
+    rewards = discount_reward(rewards)
+    loss = train(model, obs, rewards)
     return loss.numpy(), rewards
 
 
 if __name__ == '__main__':
-    Epochs = 100000
+    Epochs = 5000
     losses = []
     for epoch in range(Epochs):
         loss, rewards = train_loop()
@@ -88,8 +81,8 @@ if __name__ == '__main__':
             portfolio = [10000]
             portfolio.extend(rewards)
             portfolio.append(np.nan)
-            plot_df['rewards'] = portfolio
-            plot_df.to_csv('./data_for_analysis/%s_df.csv'%epoch)
+            plot_df.loc[:, 'rewards'] = portfolio
+            plot_df.to_csv('./data_for_analysis/%s_df.csv' % epoch)
         if math.isnan(rewards[-1]) or math.isnan(loss):
             break
     model.save('./model/policy_gradient')
