@@ -55,8 +55,8 @@ def train_loop():
     while True:
         action = model(ob)[0]
         ob, reward, done, (current_price, next_price, shares_held) = env.step(action)
-        if math.isnan(reward):
-            break
+        #if math.isnan(reward):
+        #    break
         obs.append(ob[0])
         rewards.append(reward)
         if done:
@@ -83,7 +83,7 @@ if __name__ == '__main__':
             portfolio.append(np.nan)
             plot_df.loc[:, 'rewards'] = portfolio
             plot_df.to_csv('./data_for_analysis/%s_df.csv' % epoch)
-        if math.isnan(rewards[-1]) or math.isnan(loss):
-            break
+        #if math.isnan(rewards[-1]) or math.isnan(loss):
+        #    break
     model.save('./model/policy_gradient')
 
