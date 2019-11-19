@@ -37,12 +37,12 @@ def discount_reward(rewards, r=0.04/250):
     ret_rewards = rewards.numpy()[-1] / rewards
     discount = np.array(list(reversed(range(1, len(ret_rewards) + 1))), dtype=float)
     discount_rewards = ret_rewards ** (250./discount)
-    return 1.1 - tf.convert_to_tensor(discount_rewards, dtype=tf.float32)
+    return tf.convert_to_tensor(discount_rewards-1.1, dtype=tf.float32)
 
 
 def train(model, obs, rewards):
     with tf.GradientTape() as tape:
-        loss = tf.reduce_sum(tf.transpose(tf.math.log(model(obs)[1]))*rewards)
+        loss = -tf.reduce_sum(tf.transpose(tf.math.log(model(obs)[1]))*rewards)
     gradient = tape.gradient(loss, model.trainable_variables)
     optimizer.apply_gradients(zip(gradient, model.trainable_variables))
     return loss
@@ -70,13 +70,13 @@ def train_loop():
 
 
 if __name__ == '__main__':
-    Epochs = 5000
+    Epochs = 10000
     losses = []
     for epoch in range(Epochs):
         loss, rewards = train_loop()
         losses.append(loss)
+        print('epochs:{}, loss:{}'.format(epoch, loss))
         if epoch % 1000 == 0:
-            print('epochs:{}, loss:{}'.format(epoch, loss))
             plot_df = df[price_col]
             portfolio = [10000]
             portfolio.extend(rewards)
