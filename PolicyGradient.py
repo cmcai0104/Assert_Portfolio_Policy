@@ -85,5 +85,5 @@ if __name__ == '__main__':
             plot_df.to_csv('./data_for_analysis/%s_df.csv' % epoch)
         #if math.isnan(rewards[-1]) or math.isnan(loss):
         #    break
-    model.save('./model/policy_gradient')
+    model.save('./model/policy_gradient.h5')
 
