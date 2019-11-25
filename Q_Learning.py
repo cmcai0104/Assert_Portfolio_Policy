@@ -40,7 +40,8 @@ def create_mode():
 
 
 Q_model = create_mode()
-optimizer = optimizers.RMSprop(0.001)
+optimizer = optimizers.RMSprop(0.00001)
+loss_object = losses.MeanSquaredError()
 delay_model = Q_model
 
 
@@ -63,7 +64,7 @@ def train(Q_model, delay_model, obs, rewards, action):
                  tf.expand_dims((action - predict[0]),2) + tf.expand_dims(predict[2],2))
         qvalue = (tf.squeeze(qvalue) - rewards)[:-1]
         expect_qvalue = tf.squeeze(delay_model(obs)[2])[1:]
-        loss = losses.MSE(y_pred=qvalue, y_true=expect_qvalue)
+        loss = loss_object(y_pred=qvalue, y_true=expect_qvalue)
     gradient = tape.gradient(loss, Q_model.trainable_variables)
     optimizer.apply_gradients(zip(gradient, Q_model.trainable_variables))
     return loss
