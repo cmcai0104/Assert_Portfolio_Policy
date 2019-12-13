@@ -1,5 +1,7 @@
 import numpy as np
 import gym
+import tensorflow_probability as tfp
+import tensorflow as tf
 
 
 class DNNMarketEnv(gym.Env):
@@ -42,21 +44,38 @@ class DNNMarketEnv(gym.Env):
         obs = np.array([self.df.iloc[self.current_step, :].values / self.Max_Share_Price])
         return obs
 
+    def _generate_rate(self, action):
+        mu = action[0]
+        scale_value = action[1]
+        scale = np.zeros((self.action_dim, self.action_dim))
+        scale[np.tril_indices(self.action_dim, 0)] = scale_value
+        scale = tf.convert_to_tensor(scale, dtype=tf.float32)
+        self.dist = tfp.distributions.MultivariateNormalTriL(loc=mu, scale_tril=scale)
+        rate = tf.Variable(self.dist.sample(1))
+        while np.all(rate<=0):
+            rate = tf.Variable(self.dist.sample(1))
+        adjust_rate = tf.clip_by_value(rate, clip_value_min=self.action_space.low, clip_value_max=self.action_space.high)
+        adjust_rate = adjust_rate / tf.reduce_sum(adjust_rate)
+        self.log_prob = self.dist.log_prob(adjust_rate)
+        return adjust_rate[0][0]
+
     # 进行交易
     def _take_action(self, action):
         self.current_price = np.array(self.df.iloc[self.current_step, ][self.price_cols])
         self.shares_before = self.shares_held
         self.net_worth = np.sum(np.append(self.current_price, 1)*self.shares_held)
         hold_rate = (np.append(self.current_price, 1) * self.shares_held / self.net_worth)
-        target_rate = (action.numpy() / action.numpy().sum())[0]
-        para = np.zeros(len(hold_rate)-1)
-        sell_index = np.where(hold_rate[:-1] > target_rate[:-1])
-        buy_index = np.where(hold_rate[:-1] < target_rate[:-1])
-        para[sell_index] = 1-self.sell_fee
-        para[buy_index] = 1/(1-self.buy_fee)
-        self.net_worth = ((hold_rate[:-1]*para).sum()+hold_rate[-1]) / \
-                         ((target_rate[:-1]*para).sum()+target_rate[-1]) * self.net_worth
-        self.shares_held = self.net_worth * target_rate / np.append(self.current_price, 1)
+        self.target_rate = self._generate_rate(action)
+        target_rate = self.target_rate.numpy()
+        if np.any(target_rate != hold_rate):
+            para = np.zeros(len(hold_rate)-1)
+            sell_index = np.where(hold_rate[:-1] > target_rate[:-1])
+            buy_index = np.where(hold_rate[:-1] < target_rate[:-1])
+            para[sell_index] = 1 - self.sell_fee
+            para[buy_index] = 1 / (1 - self.buy_fee)
+            self.net_worth = ((hold_rate[:-1]*para).sum()+hold_rate[-1]) / \
+                             ((target_rate[:-1]*para).sum()+target_rate[-1]) * self.net_worth
+            self.shares_held = self.net_worth * target_rate / np.append(self.current_price, 1)
 
     # 在环境中执行一步
     def step(self, action):
@@ -68,7 +87,7 @@ class DNNMarketEnv(gym.Env):
         done = self.current_step >= self.Max_Steps
         if self.net_worth > self.max_net_worth:
             self.max_net_worth = self.net_worth
-        return obs, reward, done, (self.current_price, self.next_price, self.shares_before)
+        return obs, reward, done, (self.dist, self.target_rate)
 
     # 重置环境状态至初始状态
     def reset(self):

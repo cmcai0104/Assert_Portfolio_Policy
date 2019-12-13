@@ -1,0 +1,45 @@
+TensorFlow 2.0 Upgrade Script
+-----------------------------
+Converted 1 files
+Detected 1 issues that require attention
+--------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
+File: testfile.py
+--------------------------------------------------------------------------------
+testfile.py:40:20: ERROR: Using member tf.contrib.distributions.Normal in deprecated module tf.contrib. tf.contrib.distributions.Normal cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+================================================================================
+Detailed log follows:
+
+================================================================================
+--------------------------------------------------------------------------------
+Processing file 'testfile.py'
+ outputting to 'testfile2.py'
+--------------------------------------------------------------------------------
+
+10:20: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+18:9: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+19:22: INFO: Changing tf.contrib.layers xavier initializer to a tf.compat.v1.keras.initializers.VarianceScaling and converting arguments.
+
+21:18: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+22:18: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+23:12: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+32:9: INFO: Renamed 'tf.variable_scope' to 'tf.compat.v1.variable_scope'
+33:22: INFO: Changing tf.contrib.layers xavier initializer to a tf.compat.v1.keras.initializers.VarianceScaling and converting arguments.
+
+35:18: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+36:18: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+37:13: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+38:16: INFO: Renamed 'tf.layers.dense' to 'tf.compat.v1.layers.dense'
+40:20: ERROR: Using member tf.contrib.distributions.Normal in deprecated module tf.contrib. tf.contrib.distributions.Normal cannot be converted automatically. tf.contrib will not be distributed with TensorFlow 2.0, please consider an alternative in non-contrib TensorFlow, a community-maintained repository such as tensorflow/addons, or fork the required code.
+71:21: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+72:20: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+73:21: INFO: Renamed 'tf.placeholder' to 'tf.compat.v1.placeholder'
+79:14: INFO: Renamed 'tf.log' to 'tf.math.log'
+80:20: INFO: Renamed 'tf.train.AdamOptimizer' to 'tf.compat.v1.train.AdamOptimizer'
+84:14: INFO: Added keywords to args of function 'tf.reduce_mean'
+84:29: INFO: Renamed 'tf.squared_difference' to 'tf.math.squared_difference'
+86:21: INFO: Renamed 'tf.train.AdamOptimizer' to 'tf.compat.v1.train.AdamOptimizer'
+93:5: INFO: Renamed 'tf.Session' to 'tf.compat.v1.Session'
+94:13: INFO: Renamed 'tf.global_variables_initializer' to 'tf.compat.v1.global_variables_initializer'
+--------------------------------------------------------------------------------
+
